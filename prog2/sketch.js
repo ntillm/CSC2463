@@ -3,7 +3,7 @@ let dragging = false;
 let selectedColor = 'white';
 
 function setup() {
-  createCanvas(1000, 1000);
+  createCanvas(10000, 10000);
   strokeWeight(10);
 }
 
