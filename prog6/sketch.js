@@ -1,3 +1,5 @@
+import * as Tone from 'tone';
+
 let synth1, filt, rev, polySynth, noise1, ampEnv1, distortion;
 let distortionSlider;
 
