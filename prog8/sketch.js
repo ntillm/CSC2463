@@ -153,6 +153,22 @@ function playColorSelectSound(colorIndex) {
 
 function initializeAudio() {
   Tone.start().then(() => {
+    // Drawing synth with shorter envelope
+    synth = new Tone.Synth({
+      oscillator: {
+        type: 'triangle',
+      },
+      envelope: {
+        attack: 0.01,
+        decay: 0.05,
+        sustain: 0.1,
+        release: 0.05
+      }
+    }).toDestination();
+    
+    synth.volume.value = -15;
+
+    // Rest of the audio setup...
     noise = new Tone.Noise("white").start();
     noiseFilter = new Tone.Filter({
       type: "bandpass",
@@ -168,25 +184,9 @@ function initializeAudio() {
     }).connect(noiseFilter);
     
     noise.connect(noiseEnv);
-    
-    synth = new Tone.Synth({
-      oscillator: {
-        type: 'triangle',
-      },
-      envelope: {
-        attack: 0.01,
-        decay: 0.2,
-        sustain: 0.3,
-        release: 0.2
-      }
-    }).toDestination();
-    
-    synth.volume.value = -15;
-    
-    // Set initial volume to silent
     noise.volume.value = -100;
 
-    // Enhanced color selection synth with richer harmonics
+    // Enhanced color selection synth
     colorClickSynth = new Tone.PolySynth(Tone.Synth, {
       oscillator: {
         type: 'sine'
@@ -246,13 +246,13 @@ function initializeAudio() {
     
     backgroundSynth.volume.value = minVolume;
 
-    // Create a more musical sequence for background music
+    // Create initial background sequence
     backgroundSeq = new Tone.Sequence((time, note) => {
       const randomDelay = Math.random() * 0.1;
       backgroundSynth.triggerAttackRelease(note, '4n', time + randomDelay);
     }, ['C4', 'E4', 'G4', 'C5'], '4n').start(0);
 
-    // Clear sound effect with more musical characteristics
+    // Clear sound effect
     clearSound = new Tone.PolySynth(Tone.Synth, {
       oscillator: {
         type: 'sine'
@@ -302,49 +302,14 @@ function mouseDragged() {
     }
     updateDrawingDensity();
     
-    if (!isPlaying && noise) {
-      startMarkerSound();
-    }
+    // Play drawing sound
+    const speed = dist(pmouseX, pmouseY, mouseX, mouseY);
+    const constrainedSpeed = constrain(speed, 0.1, 20);
+    const frequency = map(constrainedSpeed, 0.1, 20, 220, 440);
+    synth.triggerAttackRelease(frequency, '32n');
   }
   
   lastDrawTime = millis();
-  setTimeout(checkIfStillDrawing, drawingSoundTimeout);
-}
-
-function startMarkerSound() {
-  if (!noise) return;
-  
-  isPlaying = true;
-  
-  // Calculate speed
-  const speed = dist(pmouseX, pmouseY, mouseX, mouseY);
-  
-  // Use a fixed note instead of trying to map between note names
-  // OR constrain the speed to avoid very small values
-  const constrainedSpeed = constrain(speed, 0.1, 20);
-  
-  // Map to frequency instead of note names
-  const frequency = map(constrainedSpeed, 0.1, 20, 220, 440); // Map to Hz values
-  
-  noise.volume.value = 0;
-  noiseEnv.triggerAttack();
-  
-  // Use frequency instead of note name
-  synth.triggerAttackRelease(frequency, '32n');
-}
-
-function stopMarkerSound() {
-  if (!noise) return;
-  
-  isPlaying = false;
-  noiseEnv.triggerRelease();
-  noise.volume.rampTo(-100, 0.1);
-}
-
-function checkIfStillDrawing() {
-  if (isPlaying && millis() - lastDrawTime > drawingSoundTimeout) {
-    stopMarkerSound();
-  }
 }
 
 function updateDrawingDensity() {
@@ -370,11 +335,13 @@ function updateDrawingDensity() {
     const sparseNotes = ['C4', 'G4', 'C5'];
     
     const notes = drawingDensity > 0.5 ? denseNotes : sparseNotes;
-    backgroundSeq.events = notes.map(note => ({
-      time: 0,
-      note: note,
-      duration: '4n'
-    }));
+    
+    // Create a new sequence with the updated notes
+    backgroundSeq.stop();
+    backgroundSeq = new Tone.Sequence((time, note) => {
+      const randomDelay = Math.random() * 0.1;
+      backgroundSynth.triggerAttackRelease(note, '4n', time + randomDelay);
+    }, notes, '4n').start(0);
 
     // Calculate volume based on drawing density and recent drawings count
     const fillFactor = Math.min(recentDrawings.length / maxDensity, 1);
